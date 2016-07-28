@@ -13,7 +13,7 @@ class KalmanFilter:
     Class to keep track of the estimate of the robots current state using the
     Kalman Filter
     """
-    def __init__(self, markers):
+    def __init__(self):
         """
         Initialize all necessary components for Kalman Filter, using the
         markers (AprilTags) as the map
@@ -24,14 +24,25 @@ class KalmanFilter:
             unique id to identify which one you are seeing at any given
             moment
         """
-        self.markers = markers
+
+        # Number of landmarks
+        self.N = 10
+        self.visitedMarks = []
         self.last_time = None # Used to keep track of time between measurements 
-        self.Q_t = np.eye(2)
+        # Pose  and map variance
+        self.Q_t = np.eye(3*self.N + 3)
+        # Measuremnt variance
         self.R_t = np.eye(3)
         # YOUR CODE HERE
-        self.x_t = np.array([[0], [0], [0]])
-        self.x_t_prediction = np.array([[0], [0], [0]])
-        self.P_t = 1000 * np.eye(3)
+        self.x_t = np.zeros((3*self.N + 3, 1))
+        self.x_t_prediction = np.zeros((3*self.N + 3, 1))
+        self.F = np.concatenate(np.eye(3), np.zeros((3, 3*self.N), axis=1)
+        self.P_t = 1000 * np.eye(3*self.N + 3)
+
+    def getFJ(self, j)
+        pose_F = np.eye(3)
+        pass
+
 
     def prediction(self, v, imu_meas):
         """
@@ -65,28 +76,28 @@ class KalmanFilter:
         # Coursera's way
         if omega == 0:
             print 'zero omega'
-            G = np.eye(3) + dt * np.array([[0, 0, -v[0] * np.sin(self.x_t[2, 0])], [0, 0, v[0] * np.cos(self.x_t[2, 0])], [0, 0, 0]])
-            N = dt * np.array([[-np.sin(self.x_t[2, 0]), 0], [np.cos(self.x_t[2, 0]), 0], [0, 1]])
-            self.x_t_prediction = self.x_t + dt * np.array([[v[0] * np.cos(self.x_t[2, 0])], [v[0] * np.sin(self.x_t[2, 0])], [omega]])
+            G = np.eye(3*self.N + 3) + \
+                    ((np.transpose(self.F))
+                      .dot(dt * np.array([[0, 0, -v[0] * np.sin(self.x_t[2, 0])], [0, 0, v[0] * np.cos(self.x_t[2, 0])], [0, 0, 0]])))
+                      .dot(self.F)
+            self.x_t_prediction = self.x_t + \
+                    (np.transpose(self.F)).dot(dt * np.array([[v[0] * np.cos(self.x_t[2, 0])], [v[0] * np.sin(self.x_t[2, 0])], [omega]]))
         else:
         # Thurn's way
-            G = np.eye(3) + np.array([[0, 0, -(v[0]/omega * np.cos(self.x_t[2, 0])) + (v[0]/omega * np.cos(self.x_t[2, 0] + omega * dt))],
+            G = np.eye(3*self.N + 3) + \
+                    ((np.transpose(self.F))
+                    .dot(np.array([[0, 0, -(v[0]/omega * np.cos(self.x_t[2, 0])) + (v[0]/omega * np.cos(self.x_t[2, 0] + omega * dt))],
                                   [0, 0, -(v[0]/omega * np.sin(self.x_t[2, 0])) + (v[0]/omega * np.sin(self.x_t[2, 0] + omega * dt))],
-                                  [0, 0, 0]])
-            N = np.array([[(-np.sin(self.x_t[2, 0]) + np.sin(self.x_t[2, 0] + omega * dt)) / omega, 
-                           (v[0] * (np.sin(self.x_t[2, 0]) - np.sin(self.x_t[2, 0] + omega * dt)) / (omega ** 2)) + 
-                           (v[0] * (np.cos(self.x_t[2, 0] + omega * dt) * dt) / omega)],
-                          [(np.cos(self.x_t[2, 0]) - np.cos(self.x_t[2, 0] + omega * dt)) / omega,
-                           (-v[0] * (np.cos(self.x_t[2, 0]) - np.cos(self.x_t[2, 0] + omega * dt)) / (omega ** 2)) + 
-                           (v[0] * (np.sin(self.x_t[2, 0] + omega * dt) * dt) / omega)],
-                          [0, dt]]);
+                                  [0, 0, 0]]))
+                    .dot(self.F)
             self.x_t_prediction = self.x_t + \
-                              np.array([[-(v[0]/omega * np.sin(self.x_t[2, 0])) + (v[0]/omega * np.sin(self.x_t[2, 0] + omega * dt))],
+                              (np.transpose(self.F))
+                              .dot(np.array([[-(v[0]/omega * np.sin(self.x_t[2, 0])) + (v[0]/omega * np.sin(self.x_t[2, 0] + omega * dt))],
                                         [(v[0]/omega * np.cos(self.x_t[2, 0])) - (v[0]/omega * np.cos(self.x_t[2, 0] + omega * dt))],
-                                        [omega * dt]])
+                                        [omega * dt]]))
                                         
                                         
-        self.P_t_prediction = (G.dot(self.P_t)).dot(np.transpose(G)) + (N.dot(self.Q_t)).dot(np.transpose(N))
+        self.P_t_prediction = (G.dot(self.P_t)).dot(np.transpose(G)) +  ((np.transpose(self.F)).dot(self.Q_t)).dot(self.F)
         return (self.x_t_prediction, self.P_t_prediction)
 
     def update(self,z_t):
@@ -104,14 +115,26 @@ class KalmanFilter:
         predicted_covariance - a 3 by 3 numpy array of the updated covariance
         """
         # YOUR CODE HERE
-        H = np.eye(3)
+        H = np.concatenate(np.eye(3), np.zeros((3, 3*self.N), axis=1)
         K = (self.P_t_prediction.dot(np.transpose(H))).dot(inv((H.dot(self.P_t_prediction)).dot(np.transpose(H)) + self.R_t))
 
         if(z_t != None and z_t.any()):
 
             for i in range(z_t.shape[0]):
-                # retrieve pose of the tag in world frame from the map(markers)
-                tag_w_pose = self.tag_pos(z_t[i, 3])
+
+                landmark_id = z_t[i, 3]
+                map_index_start = landmark_id * 3 + 3
+                map_index_end = map_index_start + 3
+
+                if not (landmark_id in self.visitedMarks):
+                    self.x_t[map_index:map_index_end, :] = 
+                            np.array([[self.x_t[0, 0]], [self.x_t[1, 0]], 0]) + \
+                            self.map_pos([[z_t[i, 0]], [z_t[i, 1]], [landmark_id]])
+                    self.visitedMarks.append(landmark_id)
+
+
+                # retrieve pose of the tag from current predictions
+                tag_w_pose = self.x_t[map_index:map_index_end, :]
                 # pose of the tag as measured from the robot
                 tag_r_pose = z_t[i, :3]
                 # pose of the robot in the world frame
@@ -124,6 +147,14 @@ class KalmanFilter:
         self.P_t = self.P_t_prediction - (K.dot(H)).dot(self.P_t_prediction)
 
         return (self.x_t, self.P_t)
+
+    def map_pos(self, map_robot_pose, robot_theta)
+        rotation = np.array([[math.cos(robot_theta), -math.sin(robot_theta), 0],
+                             [math.sin(robot_theta),  math.cos(robot_theta), 0],
+                             [0, 0, 1]])
+        map_world_pose = rotation.dot(map_robot_pose)
+        return map_world_pose
+
 
     def robot_pos(self, w_pos, r_pos):
         H_W = np.array([[math.cos(w_pos[2]), -math.sin(w_pos[2]), w_pos[0]],
