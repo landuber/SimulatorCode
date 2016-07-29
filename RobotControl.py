@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 # TODO for student: User files, uncomment as completed
 from ShortestPath import dijkstras
 from KalmanFilterThurn import KalmanFilter
+from KalmanFilterSLAM import KalmanFilterSLAM
 from DiffDriveController import DiffDriveController
 
 class RobotControl(object):
@@ -77,6 +78,7 @@ class RobotControl(object):
         self.total_goals = self.goals.shape[0]
         self.cur_goal = 1
         self.kalman_filter = KalmanFilter(world_map)
+        self.kalman_SLAM = KalmanFilterSLAM()
         self.diff_drive_controller = DiffDriveController(max_speed, max_omega)
 
     def process_measurements(self):
@@ -103,6 +105,11 @@ class RobotControl(object):
 
 
         pose = self.kalman_filter.step_filter(self.vel, self.imu_meas, np.asarray(self.meas))
+        pose_map = self.kalman_SLAM.step_filter(self.vel, self.imu_meas, np.asarray(self.meas))
+        print 'pose'
+        print pose
+        print 'pose & map'
+        print pose_map
         self.robot_sim.set_est_state(pose)
         # goal = self.goals[self.cur_goal]
         # vel = self.diff_drive_controller.compute_vel(pose, goal)        

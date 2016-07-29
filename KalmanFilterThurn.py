@@ -52,8 +52,6 @@ class KalmanFilter:
         # YOUR CODE HERE
         # todo: change v[2] to omega from imu and dt from imu time
         dt = imu_meas[4, 0] - self.last_time
-        print 'in prediction'
-        print dt
         omega = v[1]
         # omega = imu_meas[3, 0]
         self.last_time = imu_meas[4, 0]
@@ -64,7 +62,6 @@ class KalmanFilter:
         # N = df/dn
         # Coursera's way
         if omega == 0:
-            print 'zero omega'
             G = np.eye(3) + dt * np.array([[0, 0, -v[0] * np.sin(self.x_t[2, 0])], [0, 0, v[0] * np.cos(self.x_t[2, 0])], [0, 0, 0]])
             N = dt * np.array([[-np.sin(self.x_t[2, 0]), 0], [np.cos(self.x_t[2, 0]), 0], [0, 1]])
             self.x_t_prediction = self.x_t + dt * np.array([[v[0] * np.cos(self.x_t[2, 0])], [v[0] * np.sin(self.x_t[2, 0])], [omega]])
@@ -134,8 +131,6 @@ class KalmanFilter:
                         [0, 0, 1]])
         w_r = H_W.dot(inv(H_R))
         robot_pose =  np.array([[w_r[0,2]], [w_r[1,2]], [math.atan2(w_r[1,0], w_r[0, 0])]])
-        print 'transofrmed robot pos'
-        print robot_pose
         return robot_pose
         
     def tag_pos(self, marker_id):
